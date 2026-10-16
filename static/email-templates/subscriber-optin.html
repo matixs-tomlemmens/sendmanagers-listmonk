@@ -1,0 +1,131 @@
+{{- /*
+  Sendmanagers — de bevestigingsmail bij dubbele opt-in, in de taal van de abonnee.
+
+  Overschrijft Listmonk's eigen static/email-templates/subscriber-optin.html via
+  --static-dir (LISTMONK_static_dir). Alleen dit bestand; de rest blijft dat van
+  de image.
+
+  Taal:      .Subscriber.Attribs.taal, gezet door de hub bij de aanmelding.
+             Ontbreekt die of is ze onbekend: Nederlands.
+  Onderwerp: de <title data-i18n> hieronder. Listmonk haalt die uit de
+             gerenderde mail en gebruikt ze als onderwerp (notifs.GetTplSubject).
+  Klant:     uit het voorvoegsel ws_<id>__ van de lijsten. Het logo komt van de
+             SSO-proxy (/merk/<id>/logo, zie sso-proxy/src/publiek.ts). Staan er
+             lijsten van twee klanten in dezelfde mail, dan geen logo — gokken is
+             erger dan niets.
+  AGPL:      dit bestand vervangt er een uit de broncode van Listmonk. Het staat
+             daarom ook publiek, in github.com/matixs-tomlemmens/sendmanagers-listmonk,
+             en de voet van de mail wijst ernaar. Wie het wijzigt, werkt ook dáár bij.
+  Opgelet:   een fout in dit template laat Listmonk niet opstarten. Eerst lokaal
+             testen tegen dezelfde versie (zie docs/deploy.md).
+*/ -}}
+{{ define "subscriber-optin" }}
+{{- $teksten := dict
+  "nl" (dict
+    "onderwerp" "Bevestig je aanmelding"
+    "hallo"     "Hallo,"
+    "intro"     "Bedankt voor je aanmelding voor:"
+    "prive"     "onze nieuwsbrief"
+    "uitleg"    "Klik op de knop hieronder om te bevestigen. Pas daarna sturen we je onze mails."
+    "knop"      "Ja, ik meld me aan"
+    "niet"      "Heb je je niet aangemeld? Dan hoef je niets te doen: zonder bevestiging krijg je niets van ons."
+    "broncode"  "broncode"
+    "aangepast" "onze aanpassingen")
+  "fr" (dict
+    "onderwerp" "Confirmez votre inscription"
+    "hallo"     "Bonjour,"
+    "intro"     "Merci pour votre inscription à :"
+    "prive"     "notre newsletter"
+    "uitleg"    "Cliquez sur le bouton ci-dessous pour la confirmer. Vous ne recevrez nos e-mails qu'après cette confirmation."
+    "knop"      "Oui, je m'inscris"
+    "niet"      "Vous n'avez rien demandé ? Ignorez simplement ce message : sans confirmation, vous ne recevrez rien de notre part."
+    "broncode"  "code source"
+    "aangepast" "nos modifications")
+  "en" (dict
+    "onderwerp" "Confirm your subscription"
+    "hallo"     "Hello,"
+    "intro"     "Thanks for signing up for:"
+    "prive"     "our newsletter"
+    "uitleg"    "Click the button below to confirm. We'll only start sending you emails once you have."
+    "knop"      "Yes, sign me up"
+    "niet"      "Didn't sign up? Then there's nothing to do: without confirmation, you won't hear from us."
+    "broncode"  "source code"
+    "aangepast" "our changes")
+  "de" (dict
+    "onderwerp" "Bitte bestätigen Sie Ihre Anmeldung"
+    "hallo"     "Guten Tag,"
+    "intro"     "vielen Dank für Ihre Anmeldung zu:"
+    "prive"     "unserem Newsletter"
+    "uitleg"    "Ein Klick auf die Schaltfläche unten genügt. Erst danach erhalten Sie E-Mails von uns."
+    "knop"      "Ja, ich möchte mich anmelden"
+    "niet"      "Sie haben sich nicht angemeldet? Dann müssen Sie nichts tun: Ohne Bestätigung erhalten Sie nichts von uns."
+    "broncode"  "Quellcode"
+    "aangepast" "unsere Anpassungen")
+  "es" (dict
+    "onderwerp" "Confirme su suscripción"
+    "hallo"     "Hola:"
+    "intro"     "Gracias por suscribirse a:"
+    "prive"     "nuestro boletín"
+    "uitleg"    "Haga clic en el botón de abajo para confirmarla. Solo recibirá nuestros correos después de hacerlo."
+    "knop"      "Sí, quiero suscribirme"
+    "niet"      "¿No se ha suscrito? Entonces no tiene que hacer nada: sin confirmación, no recibirá nada de nuestra parte."
+    "broncode"  "código fuente"
+    "aangepast" "nuestros cambios")
+  "it" (dict
+    "onderwerp" "Conferma la tua iscrizione"
+    "hallo"     "Ciao,"
+    "intro"     "grazie per l'iscrizione a:"
+    "prive"     "la nostra newsletter"
+    "uitleg"    "Fai clic sul pulsante qui sotto per confermarla. Solo dopo la conferma riceverai le nostre email."
+    "knop"      "Sì, voglio iscrivermi"
+    "niet"      "Non hai richiesto l'iscrizione? Non devi fare nulla: senza conferma non ti invieremo niente."
+    "broncode"  "codice sorgente"
+    "aangepast" "le nostre modifiche")
+-}}
+{{- $taal := lower (toString (index .Subscriber.Attribs "taal")) -}}
+{{- if not (hasKey $teksten $taal) }}{{ $taal = "nl" }}{{ end -}}
+{{- $t := index $teksten $taal -}}
+
+{{- $ws := "" -}}{{- $meerdere := false -}}
+{{- range .Lists -}}
+  {{- $w := regexReplaceAll "^ws_([A-Za-z0-9_-]+?)__.*$" .Name "${1}" -}}
+  {{- if eq $w .Name }}{{ $meerdere = true }}{{ else if and $ws (ne $ws $w) }}{{ $meerdere = true }}{{ else }}{{ $ws = $w }}{{ end -}}
+{{- end -}}
+{{- if $meerdere }}{{ $ws = "" }}{{ end -}}
+<!doctype html>
+<html lang="{{ $taal }}">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n>{{ $t.onderwerp }}</title>
+</head>
+<body style="margin:0;background:#F0F1F3;font-family:'Helvetica Neue','Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:#333;">
+  <div style="padding:30px 10px;">
+    <div style="max-width:525px;margin:0 auto;background:#fff;border-radius:6px;padding:30px;">
+      {{- if $ws }}
+      <div style="text-align:center;margin-bottom:20px;">
+        <img src="{{ RootURL }}/merk/{{ $ws }}/logo" alt="" style="max-width:200px;max-height:80px;">
+      </div>
+      {{- end }}
+      <h2 style="margin:0 0 16px;font-size:20px;color:#111;">{{ $t.onderwerp }}</h2>
+      <p style="margin:0 0 8px;">{{ $t.hallo }}</p>
+      <p style="margin:0 0 8px;">{{ $t.intro }}</p>
+      <ul style="margin:0 0 16px;padding-left:20px;">
+        {{- range .Lists }}
+        <li>{{ if eq .Type "public" }}{{ regexReplaceAll "^ws_[A-Za-z0-9_-]+?__" .Name "" }}{{ else }}{{ $t.prive }}{{ end }}</li>
+        {{- end }}
+      </ul>
+      <p style="margin:0 0 24px;">{{ $t.uitleg }}</p>
+      <p style="margin:0 0 24px;text-align:center;">
+        <a href="{{ .OptinURL }}" style="display:inline-block;background:#1B91DA;color:#fff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:4px;">{{ $t.knop }}</a>
+      </p>
+      <p style="margin:0;font-size:13px;color:#777;">{{ $t.niet }}</p>
+    </div>
+    <p style="text-align:center;font-size:11px;color:#999;margin:16px 0 0;">
+      listmonk · <a href="https://github.com/knadh/listmonk" style="color:#999;">{{ $t.broncode }}</a>
+      · <a href="https://github.com/matixs-tomlemmens/sendmanagers-listmonk" style="color:#999;">{{ $t.aangepast }}</a>
+    </p>
+  </div>
+</body>
+</html>
+{{ end }}
